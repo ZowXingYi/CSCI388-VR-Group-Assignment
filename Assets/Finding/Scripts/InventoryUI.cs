@@ -21,7 +21,7 @@ public class InventoryUI : MonoBehaviour
     [SerializeField] private string molesSuffix = " moles";
 
     private bool showMoles = false;
-    private bool canSpawnBalloons = false;   // locked until reaction finishes
+    private bool canSpawnBalloons = false;
 
     private void Start()
     {
@@ -39,8 +39,13 @@ public class InventoryUI : MonoBehaviour
         AnalyticalLabStation.OnLabExit += OnLabExit;
         AnalyticalLabStation.OnReactionComplete += OnReactionComplete;
 
+        // Initial refresh using the correct two values
         foreach (var slot in slots)
-            UpdateSlot(slot.type, InventoryManager.Instance.GetCount(slot.type));
+        {
+            int itemCount = InventoryManager.Instance.GetItemCount(slot.type);
+            int totalMoles = InventoryManager.Instance.GetMoleCount(slot.type);
+            UpdateSlot(slot.type, itemCount, totalMoles);
+        }
     }
 
     private void OnDisable()
@@ -52,42 +57,68 @@ public class InventoryUI : MonoBehaviour
         AnalyticalLabStation.OnReactionComplete -= OnReactionComplete;
     }
 
-    private void OnLabEnter() => showMoles = true;
-    private void OnLabExit() => showMoles = false;
+    private void OnLabEnter()
+    {
+        showMoles = true;
+        RefreshAllSlots();
+    }
+
+    private void OnLabExit()
+    {
+        showMoles = false;
+        RefreshAllSlots();
+    }
 
     private void OnReactionComplete()
     {
         canSpawnBalloons = true;
-        // refresh the balloon slot to enable the button
-        UpdateSlot(ItemType.Balloon, InventoryManager.Instance.GetCount(ItemType.Balloon));
+        // Refresh the balloon slot with both values
+        int itemCount = InventoryManager.Instance.GetItemCount(ItemType.Balloon);
+        int totalMoles = InventoryManager.Instance.GetMoleCount(ItemType.Balloon);
+        UpdateSlot(ItemType.Balloon, itemCount, totalMoles);
     }
 
-    private void UpdateSlot(ItemType type, int count)
+    // UpdateSlot now matches the delegate: Action<ItemType, int, int>
+    private void UpdateSlot(ItemType type, int itemCount, int totalMoles)
     {
         foreach (var slot in slots)
         {
             if (slot.type == type)
             {
-                if (slot.icon != null)
-                    slot.icon.gameObject.SetActive(count > 0);
+                int displayValue = showMoles ? totalMoles : itemCount;
 
-                slot.countText.text = showMoles
-                    ? $"{count}{molesSuffix}"
-                    : $"{count}{countSuffix}";
+                if (slot.icon != null)
+                    slot.icon.gameObject.SetActive(displayValue > 0);
+
+                slot.countText.text = GetDisplayText(displayValue);
 
                 if (type == ItemType.Balloon && slot.icon.TryGetComponent<Button>(out var btn))
-                    btn.interactable = count > 0 && canSpawnBalloons;
+                    btn.interactable = displayValue > 0 && canSpawnBalloons;
 
                 break;
             }
         }
+    }
 
-        if (showMoles)
+    private void RefreshAllSlots()
+    {
+        foreach (var slot in slots)
         {
-            foreach (var slot in slots)
-                slot.countText.text = showMoles
-                    ? $"{InventoryManager.Instance.GetCount(slot.type)}{molesSuffix}"
-                    : $"{InventoryManager.Instance.GetCount(slot.type)}{countSuffix}";
+            int itemCount = InventoryManager.Instance.GetItemCount(slot.type);
+            int totalMoles = InventoryManager.Instance.GetMoleCount(slot.type);
+            int displayValue = showMoles ? totalMoles : itemCount;
+
+            if (slot.icon != null)
+                slot.icon.gameObject.SetActive(displayValue > 0);
+            slot.countText.text = GetDisplayText(displayValue);
+
+            if (slot.type == ItemType.Balloon && slot.icon.TryGetComponent<Button>(out var btn))
+                btn.interactable = displayValue > 0 && canSpawnBalloons;
         }
+    }
+
+    private string GetDisplayText(int count)
+    {
+        return showMoles ? $"{count}{molesSuffix}" : $"{count}{countSuffix}";
     }
 }

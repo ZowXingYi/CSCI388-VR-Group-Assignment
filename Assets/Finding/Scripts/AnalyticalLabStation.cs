@@ -3,6 +3,7 @@
 
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 public class AnalyticalLabStation : MonoBehaviour
 {
@@ -15,13 +16,13 @@ public class AnalyticalLabStation : MonoBehaviour
     [SerializeField] private int requiredAl = 2;
     [SerializeField] private int requiredNaOH = 2;
     [SerializeField] private int requiredH2O = 6;
-    [SerializeField] private int requiredBalloons = 3;
+    [SerializeField] private int requiredBalloons = 3;   // total moles of balloons needed
 
     [Header("UI References")]
     [SerializeField] private GameObject labPanel;
-    [SerializeField] private SliderWithLabel alSlider;
-    [SerializeField] private SliderWithLabel naohSlider;
-    [SerializeField] private SliderWithLabel h2oSlider;
+    [SerializeField] private Slider alSlider;
+    [SerializeField] private Slider naohSlider;
+    [SerializeField] private Slider h2oSlider;
     [SerializeField] private GameObject reactButton;
 
     [Header("Events")]
@@ -39,7 +40,7 @@ public class AnalyticalLabStation : MonoBehaviour
         naohSlider.onValueChanged.AddListener(OnSliderChanged);
         h2oSlider.onValueChanged.AddListener(OnSliderChanged);
 
-        // Listen for inventory changes (especially balloons)
+        // Listen for inventory changes (now passes itemCount + totalMoles)
         InventoryManager.Instance.OnItemCountChanged += OnInventoryCountChanged;
         UpdateSliderLimits();
     }
@@ -74,9 +75,10 @@ public class AnalyticalLabStation : MonoBehaviour
     private void UpdateSliderLimits()
     {
         var inv = InventoryManager.Instance;
-        alSlider.maxValue = inv.GetCount(ItemType.Al);
-        naohSlider.maxValue = inv.GetCount(ItemType.NaOH);
-        h2oSlider.maxValue = inv.GetCount(ItemType.H2O);
+        // Sliders work with total moles (the amount available for reaction)
+        alSlider.maxValue = inv.GetMoleCount(ItemType.Al);
+        naohSlider.maxValue = inv.GetMoleCount(ItemType.NaOH);
+        h2oSlider.maxValue = inv.GetMoleCount(ItemType.H2O);
     }
 
     private void ResetSlidersToZero()
@@ -91,21 +93,23 @@ public class AnalyticalLabStation : MonoBehaviour
         EvaluateReactionCondition();
     }
 
-    private void OnInventoryCountChanged(ItemType type, int count)
+    // Updated signature: (ItemType type, int itemCount, int totalMoles)
+    private void OnInventoryCountChanged(ItemType type, int itemCount, int totalMoles)
     {
-        // Only re-evaluate when inside the panel and balloon count changes
+        // Re-evaluate only when inside the panel and balloon count (in moles) changes
         if (panelActive && type == ItemType.Balloon)
             EvaluateReactionCondition();
     }
 
     private void EvaluateReactionCondition()
     {
-        // Use integer comparison because sliders should be whole numbers.
+        // Slider values are moles of chemicals to use
         bool slidersReady = alSlider.value == requiredAl &&
                             naohSlider.value == requiredNaOH &&
                             h2oSlider.value == requiredH2O;
 
-        bool hasEnoughBalloons = InventoryManager.Instance.GetCount(ItemType.Balloon) >= requiredBalloons;
+        // Balloons are checked by total moles (as added by GiveBalloons)
+        bool hasEnoughBalloons = InventoryManager.Instance.GetMoleCount(ItemType.Balloon) == requiredBalloons;
 
         reactButton.SetActive(slidersReady && hasEnoughBalloons);
     }
@@ -115,7 +119,7 @@ public class AnalyticalLabStation : MonoBehaviour
     /// </summary>
     public void OnReactButtonPressed()
     {
-        // Remove the used items
+        // Remove the used moles of chemicals
         InventoryManager.Instance.RemoveItem(ItemType.Al, requiredAl);
         InventoryManager.Instance.RemoveItem(ItemType.NaOH, requiredNaOH);
         InventoryManager.Instance.RemoveItem(ItemType.H2O, requiredH2O);
@@ -135,7 +139,8 @@ public class AnalyticalLabStation : MonoBehaviour
     /// </summary>
     public void GiveBalloons()
     {
-        InventoryManager.Instance.AddItem(ItemType.Balloon, 3);
+        // Add 3 balloons, each contributing 1 mole (so totalMoles = 3, itemCount = 3)
+        InventoryManager.Instance.AddItem(ItemType.Balloon, 3, 3);
         OnReactionComplete?.Invoke();
     }
 }

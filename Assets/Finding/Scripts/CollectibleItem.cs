@@ -29,11 +29,12 @@ public class CollectibleItem : MonoBehaviour
     {
         if (InventoryManager.Instance == null)
         {
-            Debug.LogError("InventoryManager.Instance is null! Ensure it's in the scene and awake.", this);
+            Debug.LogError("InventoryManager.Instance is null!", this);
             return;
         }
 
-        InventoryManager.Instance.AddItem(itemType, moleAmount);
+        // Adds 1 object, with the defined mole amount
+        InventoryManager.Instance.AddItem(itemType, moleAmount, 1);
         Destroy(gameObject);
     }
 }

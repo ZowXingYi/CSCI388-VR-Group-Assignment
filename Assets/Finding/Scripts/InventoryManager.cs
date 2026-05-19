@@ -12,21 +12,17 @@ public class InventoryManager : MonoBehaviour
 {
     public static InventoryManager Instance { get; private set; }
 
-    // Item types – define your enum in a separate file, e.g. ItemType.cs
-    // public enum ItemType { Al, NaOH, H2O, Balloon }
+    [SerializeField] private int defaultMoles = 0;   // optional starting moles
 
-    [SerializeField] private int defaultMoles = 0;   // optional starting counts
-
+    // Separate dictionaries for item count (number of objects) and total moles
     private Dictionary<ItemType, int> itemCounts = new Dictionary<ItemType, int>();
+    private Dictionary<ItemType, int> moleCounts = new Dictionary<ItemType, int>();
 
-    /// <summary>
-    /// Fires whenever an item count changes. Passes the item type and new total.
-    /// </summary>
-    public event Action<ItemType, int> OnItemCountChanged;
+    // Event now passes both counts so listeners can decide what to show
+    public event Action<ItemType, int, int> OnItemCountChanged;   // (type, itemCount, totalMoles)
 
     private void Awake()
     {
-        // Singleton setup
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -35,72 +31,72 @@ public class InventoryManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Initialize all enum values to zero
         foreach (ItemType type in Enum.GetValues(typeof(ItemType)))
         {
-            itemCounts[type] = defaultMoles;
+            itemCounts[type] = 0;
+            moleCounts[type] = defaultMoles;
         }
     }
 
     /// <summary>
-    /// Add a specific amount of an item to the inventory.
+    /// Add one or more objects of a given type, each contributing a certain number of moles.
     /// </summary>
-    public void AddItem(ItemType type, int amount)
+    /// <param name="type">Item type.</param>
+    /// <param name="moleAmount">Total moles added by this collection (e.g., 1 can = 2 moles).</param>
+    /// <param name="objectCount">How many individual objects this represents (default 1).</param>
+    public void AddItem(ItemType type, int moleAmount, int objectCount = 1)
     {
-        if (amount <= 0) return;
+        if (moleAmount <= 0 || objectCount <= 0) return;
 
-        int current = GetCount(type);
-        itemCounts[type] = current + amount;
-        OnItemCountChanged?.Invoke(type, itemCounts[type]);
+        itemCounts[type] += objectCount;
+        moleCounts[type] += moleAmount;
+
+        OnItemCountChanged?.Invoke(type, itemCounts[type], moleCounts[type]);
     }
 
-    /// <summary>
-    /// Overload for adding a single unit (backward compatibility).
-    /// </summary>
+    // Overload for adding a single unit (1 object, 1 mole)
     public void AddItem(ItemType type)
     {
-        AddItem(type, 1);
+        AddItem(type, 1, 1);
     }
 
-    /// <summary>
-    /// Remove a specific amount of an item. Clamps count to zero.
-    /// </summary>
-    public void RemoveItem(ItemType type, int amount)
+    public void RemoveItem(ItemType type, int moleAmount, int objectCount = 1)
     {
-        if (amount <= 0) return;
+        if (moleAmount <= 0 || objectCount <= 0) return;
 
-        int current = GetCount(type);
-        itemCounts[type] = Mathf.Max(0, current - amount);
-        OnItemCountChanged?.Invoke(type, itemCounts[type]);
+        itemCounts[type] = Mathf.Max(0, itemCounts[type] - objectCount);
+        moleCounts[type] = Mathf.Max(0, moleCounts[type] - moleAmount);
+
+        OnItemCountChanged?.Invoke(type, itemCounts[type], moleCounts[type]);
     }
 
-    /// <summary>
-    /// Get the current total moles for an item type.
-    /// </summary>
-    public int GetCount(ItemType type)
+    // Get the number of objects (cans, flasks, etc.)
+    public int GetItemCount(ItemType type)
     {
-        if (itemCounts.TryGetValue(type, out int count))
-            return count;
-        return 0;
+        return itemCounts.TryGetValue(type, out int count) ? count : 0;
     }
 
-    /// <summary>
-    /// Check if we have at least the specified amount.
-    /// </summary>
+    // Get the total moles of that item
+    public int GetMoleCount(ItemType type)
+    {
+        return moleCounts.TryGetValue(type, out int moles) ? moles : 0;
+    }
+
+    // Original GetCount now returns moles for backward compatibility (used by HasEnough etc.)
+    public int GetCount(ItemType type) => GetMoleCount(type);
+
     public bool HasEnough(ItemType type, int amount)
     {
-        return GetCount(type) >= amount;
+        return GetMoleCount(type) >= amount;
     }
 
-    /// <summary>
-    /// Reset all counts to zero (for debugging or new game).
-    /// </summary>
     public void ResetAll()
     {
         foreach (ItemType type in Enum.GetValues(typeof(ItemType)))
         {
             itemCounts[type] = 0;
-            OnItemCountChanged?.Invoke(type, 0);
+            moleCounts[type] = 0;
+            OnItemCountChanged?.Invoke(type, 0, 0);
         }
     }
 }
