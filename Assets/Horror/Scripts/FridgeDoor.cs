@@ -30,6 +30,7 @@ public class FridgeDoor : MonoBehaviour
             Quaternion.Euler(
                 lowerDoor.localEulerAngles + new Vector3(0, -90, 0)
             );
+        Debug.Log(lowerOpenRot);
     }
 
     void Update()
