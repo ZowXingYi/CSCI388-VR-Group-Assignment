@@ -14,6 +14,7 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] private Transform pedestalsParent; // Group your 3 pedestals under 1 empty parent
     [SerializeField] private Vector3 pedestalsRiseOffset = new Vector3(0, 1.5f, 0);
     [SerializeField] private float riseDuration = 3f;
+    [SerializeField] private AudioSource pedestalMoveAudio; // Drag Pedestal AudioSource here!
 
     [Header("Pedestal Sockets")]
     [SerializeField] private OrientationSocket[] pedestals;
@@ -23,6 +24,8 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] private Renderer fakeShadowRenderer;
     [SerializeField] private float shadowFadeDuration = 2f;
     [SerializeField] private Vector3 doorOpenOffset = new Vector3(0, 1f, 0);
+    [SerializeField] private AudioSource shadowRevealAudio; // Drag an ethereal/magic SFX here!
+    [SerializeField] private AudioSource hatchMoveAudio;   // Drag Hatch Door AudioSource here!
 
     private bool bedMoved = false;
     private bool puzzleComplete = false;
@@ -72,11 +75,13 @@ public class PuzzleManager : MonoBehaviour
 
     IEnumerator RaisePedestals()
     {
-        // Deactivate bed grab interactable so player stops moving it
         if (bedTransform.TryGetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>(out var grab))
         {
             grab.enabled = false;
         }
+
+        // --- PLAY PEDESTAL SOUND ---
+        if (pedestalMoveAudio != null) pedestalMoveAudio.Play();
 
         Vector3 startPos = pedestalsParent.localPosition;
         Vector3 targetPos = startPos + pedestalsRiseOffset;
@@ -89,6 +94,9 @@ public class PuzzleManager : MonoBehaviour
             yield return null;
         }
         pedestalsParent.localPosition = targetPos;
+
+        // --- STOP PEDESTAL SOUND ---
+        if (pedestalMoveAudio != null) pedestalMoveAudio.Stop();
     }
 
     // Called by the sockets whenever an object is rotated or placed
@@ -127,19 +135,18 @@ public class PuzzleManager : MonoBehaviour
 
     IEnumerator RevealShadowAndOpenHatch()
     {
-        // 1. Optional UI/Mirror Message
         if (GameManager.Instance != null && GameManager.Instance.mirrorDisplay != null)
         {
             GameManager.Instance.mirrorDisplay.ShowMessage("The alignment is complete. The sun marks the descent.");
         }
 
-        // 2. Fade in the Sun Shadow on top of the Hatch Door
+        // --- PLAY SHADOW REVEAL SOUND ---
+        if (shadowRevealAudio != null) shadowRevealAudio.Play();
+
         if (fakeShadowRenderer != null)
         {
             fakeShadowRenderer.gameObject.SetActive(true);
             Material shadowMat = fakeShadowRenderer.material;
-
-            // Handle both URP and Standard shader color properties
             string colorPropertyName = shadowMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
 
             Color startColor = shadowMat.GetColor(colorPropertyName);
@@ -151,35 +158,26 @@ public class PuzzleManager : MonoBehaviour
             {
                 elapsedShadow += Time.deltaTime;
                 float alpha = Mathf.Lerp(0f, 0.6f, elapsedShadow / shadowFadeDuration);
-
                 Color c = shadowMat.GetColor(colorPropertyName);
                 c.a = alpha;
                 shadowMat.SetColor(colorPropertyName, c);
-
                 yield return null;
             }
         }
 
-        // 3. Keep the shadow glowing on the door for a few seconds as requested
         yield return new WaitForSeconds(2.5f);
 
-        // 4. Slide the Hatch Door open automatically
+        // --- AUTOMATED HATCH SLIDE WITH AUDIO ---
         if (secretCompartmentDoor != null)
         {
-            if (secretCompartmentDoor.TryGetComponent<AudioSource>(out var audio))
-            {
-                audio.Play();
-            }
+            // --- PLAY HATCH MOVEMENT SOUND ---
+            if (hatchMoveAudio != null) hatchMoveAudio.Play();
 
-            // --- THE FIX: TURN OFF COLLIDERS BEFORE SLIDING ---
             Collider[] hatchColliders = secretCompartmentDoor.GetComponentsInChildren<Collider>();
-            foreach (Collider col in hatchColliders)
-            {
-                col.enabled = false;
-            }
+            foreach (Collider col in hatchColliders) col.enabled = false;
 
             Vector3 startPos = secretCompartmentDoor.transform.localPosition;
-            Vector3 slideOffset = new Vector3(3.0f, 0f, 0f);
+            Vector3 slideOffset = new Vector3(5.0f, 0.0f, 0f); // Set to your working upward axis!
             Vector3 targetPos = startPos + slideOffset;
 
             float elapsedDoor = 0f;
@@ -193,10 +191,10 @@ public class PuzzleManager : MonoBehaviour
             }
             secretCompartmentDoor.transform.localPosition = targetPos;
 
+            // --- STOP HATCH MOVEMENT SOUND ---
+            if (hatchMoveAudio != null) hatchMoveAudio.Stop();
+
             Debug.Log("Hatch automatically slid open! Staircase is accessible.");
         }
-        else
-        {
-            Debug.LogError("PuzzleManager Error: Hatch Door (assigned to secretCompartmentDoor) is missing!");
-        }
-    }}
+    }
+}
