@@ -20,6 +20,8 @@ public class PuzzleManager : MonoBehaviour
 
     [Header("Final Reward")]
     [SerializeField] private GameObject secretCompartmentDoor;
+    [SerializeField] private Renderer fakeShadowRenderer;
+    [SerializeField] private float shadowFadeDuration = 2f;
     [SerializeField] private Vector3 doorOpenOffset = new Vector3(0, 1f, 0);
 
     private bool bedMoved = false;
@@ -47,6 +49,27 @@ public class PuzzleManager : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        // Force the shadow to be invisible the moment the game launches
+        if (fakeShadowRenderer != null)
+        {
+            // Use _BaseColor for modern Unity URP shaders
+            if (fakeShadowRenderer.material.HasProperty("_BaseColor"))
+            {
+                Color c = fakeShadowRenderer.material.GetColor("_BaseColor");
+                c.a = 0f;
+                fakeShadowRenderer.material.SetColor("_BaseColor", c);
+            }
+            else // Fallback for older Standard shaders
+            {
+                Color c = fakeShadowRenderer.material.color;
+                c.a = 0f;
+                fakeShadowRenderer.material.color = c;
+            }
+        }
+    }
+
     IEnumerator RaisePedestals()
     {
         // Deactivate bed grab interactable so player stops moving it
@@ -69,15 +92,17 @@ public class PuzzleManager : MonoBehaviour
     }
 
     // Called by the sockets whenever an object is rotated or placed
+    // Called by the sockets whenever an object is rotated or placed
     public void CheckPuzzleState()
     {
+        // If the puzzle is already complete, don't do it again
+        if (puzzleComplete) return;
+
         // Loop through all pedestals to see if they are ALL solved
         bool allPedestalsCorrect = true;
 
         foreach (OrientationSocket pedestal in pedestals)
         {
-            // We now check the public 'isPuzzleSolved' boolean variable 
-            // that gets set to true automatically when the player rotates it via UI!
             if (pedestal != null && !pedestal.IsPuzzleSolved)
             {
                 allPedestalsCorrect = false;
@@ -93,27 +118,85 @@ public class PuzzleManager : MonoBehaviour
 
     private void TriggerPuzzleComplete()
     {
-        Debug.Log("ALL PEDESTALS ALIGNED! Final room progression unlocked!");
-        // Your existing room completion code goes here (e.g., opening the final door)
+        puzzleComplete = true;
+        Debug.Log("ALL PEDESTALS ALIGNED! Hatch door sequence initiated!");
+
+        // Start the automated shadow and hatch sequence
+        StartCoroutine(RevealShadowAndOpenHatch());
     }
 
-    IEnumerator OpenSecretCompartment()
+    IEnumerator RevealShadowAndOpenHatch()
     {
+        // 1. Optional UI/Mirror Message
         if (GameManager.Instance != null && GameManager.Instance.mirrorDisplay != null)
         {
-            GameManager.Instance.mirrorDisplay.ShowMessage("The walls crack... freedom beckons.");
+            GameManager.Instance.mirrorDisplay.ShowMessage("The alignment is complete. The sun marks the descent.");
         }
 
-        Vector3 startPos = secretCompartmentDoor.transform.localPosition;
-        Vector3 targetPos = startPos + doorOpenOffset;
-        float elapsed = 0f;
-
-        while (elapsed < 1.5f)
+        // 2. Fade in the Sun Shadow on top of the Hatch Door
+        if (fakeShadowRenderer != null)
         {
-            secretCompartmentDoor.transform.localPosition = Vector3.Lerp(startPos, targetPos, elapsed / 1.5f);
-            elapsed += Time.deltaTime;
-            yield return null;
+            fakeShadowRenderer.gameObject.SetActive(true);
+            Material shadowMat = fakeShadowRenderer.material;
+
+            // Handle both URP and Standard shader color properties
+            string colorPropertyName = shadowMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
+
+            Color startColor = shadowMat.GetColor(colorPropertyName);
+            startColor.a = 0f;
+            shadowMat.SetColor(colorPropertyName, startColor);
+
+            float elapsedShadow = 0f;
+            while (elapsedShadow < shadowFadeDuration)
+            {
+                elapsedShadow += Time.deltaTime;
+                float alpha = Mathf.Lerp(0f, 0.6f, elapsedShadow / shadowFadeDuration);
+
+                Color c = shadowMat.GetColor(colorPropertyName);
+                c.a = alpha;
+                shadowMat.SetColor(colorPropertyName, c);
+
+                yield return null;
+            }
         }
-        secretCompartmentDoor.transform.localPosition = targetPos;
-    }
-}
+
+        // 3. Keep the shadow glowing on the door for a few seconds as requested
+        yield return new WaitForSeconds(2.5f);
+
+        // 4. Slide the Hatch Door open automatically
+        if (secretCompartmentDoor != null)
+        {
+            if (secretCompartmentDoor.TryGetComponent<AudioSource>(out var audio))
+            {
+                audio.Play();
+            }
+
+            // --- THE FIX: TURN OFF COLLIDERS BEFORE SLIDING ---
+            Collider[] hatchColliders = secretCompartmentDoor.GetComponentsInChildren<Collider>();
+            foreach (Collider col in hatchColliders)
+            {
+                col.enabled = false;
+            }
+
+            Vector3 startPos = secretCompartmentDoor.transform.localPosition;
+            Vector3 slideOffset = new Vector3(3.0f, 0f, 0f);
+            Vector3 targetPos = startPos + slideOffset;
+
+            float elapsedDoor = 0f;
+            float slideDuration = 2.0f;
+
+            while (elapsedDoor < slideDuration)
+            {
+                secretCompartmentDoor.transform.localPosition = Vector3.Lerp(startPos, targetPos, elapsedDoor / slideDuration);
+                elapsedDoor += Time.deltaTime;
+                yield return null;
+            }
+            secretCompartmentDoor.transform.localPosition = targetPos;
+
+            Debug.Log("Hatch automatically slid open! Staircase is accessible.");
+        }
+        else
+        {
+            Debug.LogError("PuzzleManager Error: Hatch Door (assigned to secretCompartmentDoor) is missing!");
+        }
+    }}

@@ -5,25 +5,28 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class OrientationSocket : MonoBehaviour
 {
+    // Create an enum to choose the rotation behavior in the Inspector
+    public enum RotationAxis { Y_Axis_Horizontal, X_Axis_Vertical }
+
     [Header("Target Settings")]
     [SerializeField] private string targetItemTag;
-    [SerializeField] private float targetYRotation = 0f;
-    [SerializeField] private float angleTolerance = 15f; // Tighter tolerance since UI is precise!
+    [SerializeField] private RotationAxis rotationAxis = RotationAxis.Y_Axis_Horizontal; // Default to normal horizontal spin
+    [SerializeField] private float targetRotationAngle = 0f; // Renamed to keep it generic for X or Y
+    [SerializeField] private float angleTolerance = 15f;
+    [SerializeField] private bool invertRotation = false;
 
     [Header("UI & Feedback Elements")]
-    [SerializeField] private GameObject interactionButtonCanvas; // Floating World Space Button
-    [SerializeField] private Light pedestalLight;                // The point/spot light for feedback
-    [SerializeField] private AudioSource victoryAudio;           // Success sound effect
-    [SerializeField] private bool invertRotation = false;
+    [SerializeField] private GameObject interactionButtonCanvas;
+    [SerializeField] private Light pedestalLight;
+    [SerializeField] private AudioSource victoryAudio;
 
     private XRSocketInteractor socket;
     private IXRInteractable currentItem;
     public bool IsPuzzleSolved { get; private set; } = false;
+
     void Start()
     {
         socket = GetComponent<XRSocketInteractor>();
-
-        // Setup XRI 3.x Listeners
         socket.selectEntered.AddListener(OnItemPlaced);
         socket.selectExited.AddListener(OnItemRemoved);
 
@@ -32,15 +35,12 @@ public class OrientationSocket : MonoBehaviour
 
     private void OnItemPlaced(SelectEnterEventArgs args)
     {
-        Debug.Log("SOCKET: Item detected! Checking tag...");
         if (IsPuzzleSolved) return;
 
-        // Keep track of the current item inside the socket
         if (socket.interactablesSelected != null && socket.interactablesSelected.Count > 0)
         {
             currentItem = socket.interactablesSelected[0];
 
-            // Only show the UI button if it's the correct item for this specific pedestal
             if (currentItem.transform.CompareTag(targetItemTag))
             {
                 if (interactionButtonCanvas != null) interactionButtonCanvas.SetActive(true);
@@ -54,7 +54,6 @@ public class OrientationSocket : MonoBehaviour
         if (interactionButtonCanvas != null) interactionButtonCanvas.SetActive(false);
     }
 
-    // This public method will be called directly by your UI Buttons!
     public void RotateCurrentItem(float angleAmount)
     {
         IXRInteractable foundItem = null;
@@ -65,21 +64,36 @@ public class OrientationSocket : MonoBehaviour
 
         if (foundItem == null || IsPuzzleSolved) return;
 
-        // Determine if we need to spin backwards for this specific pedestal
         float directionMultiplier = invertRotation ? -1f : 1f;
         float finalAngle = angleAmount * directionMultiplier;
 
         if (socket.attachTransform != null)
         {
-            socket.attachTransform.Rotate(0f, finalAngle, 0f, Space.Self);
+            // Choose axis based on Inspector configuration
+            if (rotationAxis == RotationAxis.X_Axis_Vertical)
+            {
+                // Rotate Forward/Backward along the X axis
+                socket.attachTransform.Rotate(finalAngle, 0f, 0f, Space.Self);
+            }
+            else
+            {
+                // Normal Left/Right spin along the Y axis
+                socket.attachTransform.Rotate(0f, finalAngle, 0f, Space.Self);
+            }
 
-            // Force the mesh to update its transform position
             foundItem.transform.position = socket.attachTransform.position;
             foundItem.transform.rotation = socket.attachTransform.rotation;
         }
         else
         {
-            foundItem.transform.Rotate(0f, finalAngle, 0f, Space.Self);
+            if (rotationAxis == RotationAxis.X_Axis_Vertical)
+            {
+                foundItem.transform.Rotate(finalAngle, 0f, 0f, Space.Self);
+            }
+            else
+            {
+                foundItem.transform.Rotate(0f, finalAngle, 0f, Space.Self);
+            }
         }
 
         CheckRotationValidity();
@@ -87,21 +101,26 @@ public class OrientationSocket : MonoBehaviour
 
     private void CheckRotationValidity()
     {
-        // Safety check
         if (socket.interactablesSelected == null || socket.interactablesSelected.Count == 0) return;
 
-        // 1. Get the actual physical object sitting in the socket right now
         Transform physicalItem = socket.interactablesSelected[0].transform;
+        float currentAngle = 0f;
 
-        // 2. Read its absolute World Y rotation (ignores parent/anchor confusion)
-        float currentWorldY = physicalItem.eulerAngles.y;
+        if (rotationAxis == RotationAxis.X_Axis_Vertical)
+        {
+            currentAngle = physicalItem.eulerAngles.x;
+        }
+        else
+        {
+            currentAngle = physicalItem.eulerAngles.y;
+        }
 
-        // 3. Calculate the absolute difference between the item's world angle and your target
-        float angleDiff = Mathf.Abs(Mathf.DeltaAngle(currentWorldY, targetYRotation));
+        // Use DeltaAngle to handle the 0/360 wrap-around perfectly
+        float angleDiff = Mathf.Abs(Mathf.DeltaAngle(currentAngle, targetRotationAngle));
 
-        Debug.Log($"Item: {physicalItem.name} | World Y: {currentWorldY:F1} | Target: {targetYRotation} | Diff: {angleDiff:F1}");
+        Debug.Log($"Item: {physicalItem.name} | Mode: {rotationAxis} | Current Angle: {currentAngle:F1} | Target: {targetRotationAngle} | Diff: {angleDiff:F1}");
 
-        // 4. Strict check: Tolerance must be small (e.g., 10-15 degrees)
+        // Strict validation check
         if (angleDiff <= angleTolerance)
         {
             TriggerSuccessFeedback();
@@ -126,22 +145,58 @@ public class OrientationSocket : MonoBehaviour
             victoryAudio.Play();
         }
 
-        // --- LOCK DOWN FOR COMPONENT DEPENDENCIES ---
+        // --- COMPONENT HAND-OFF FIXED WITH EXPLICIT CASTING ---
         if (socket.interactablesSelected != null && socket.interactablesSelected.Count > 0)
         {
-            Transform physicalItem = socket.interactablesSelected[0].transform;
+            IXRInteractable interactableItem = socket.interactablesSelected[0];
+            Transform physicalItem = interactableItem.transform;
 
-            // 1. Permanent parenting
-            physicalItem.SetParent(transform, true);
+            // Try casting the interface to the concrete XRGrabInteractable to access its attachTransform safely
+            XRGrabInteractable grabItem = interactableItem as XRGrabInteractable;
 
-            // 2. Destroy the Grab Interactable so XRI completely forgets about this item
-            XRGrabInteractable grab = physicalItem.GetComponent<XRGrabInteractable>();
-            if (grab != null)
+            if (socket.attachTransform != null)
             {
-                Destroy(grab);
+                // Check if our cast succeeded and if the item has a custom attach transform
+                if (grabItem != null && grabItem.attachTransform != null && grabItem.attachTransform != physicalItem)
+                {
+                    Transform itemAttach = grabItem.attachTransform;
+
+                    // Calculate local offset from the item's origin to its attach point
+                    Vector3 localOffset = physicalItem.position - itemAttach.position;
+
+                    // Parent it first
+                    physicalItem.SetParent(transform, true);
+
+                    // Snap it perfectly matching the socket anchor plus the offset
+                    physicalItem.position = socket.attachTransform.position + localOffset;
+                    physicalItem.rotation = socket.attachTransform.rotation * Quaternion.Inverse(itemAttach.localRotation);
+                }
+                else
+                {
+                    // Fallback if there's no custom item attach transform
+                    physicalItem.SetParent(transform, true);
+                    physicalItem.position = socket.attachTransform.position;
+                    physicalItem.rotation = socket.attachTransform.rotation;
+                }
+            }
+            else
+            {
+                physicalItem.SetParent(transform, true);
             }
 
-            // 3. Lock the Rigidbody safely
+            // 2. Destroy the Grab Interactable safely using our reference
+            if (grabItem != null)
+            {
+                Destroy(grabItem);
+            }
+            else
+            {
+                // Just in case it was a different type of interactable
+                XRGrabInteractable fallbackGrab = physicalItem.GetComponent<XRGrabInteractable>();
+                if (fallbackGrab != null) Destroy(fallbackGrab);
+            }
+
+            // 3. Freeze Rigidbody
             Rigidbody rb = physicalItem.GetComponent<Rigidbody>();
             if (rb != null)
             {
@@ -159,10 +214,7 @@ public class OrientationSocket : MonoBehaviour
             }
         }
 
-        // 4. Disable the socket component safely
         socket.enabled = false;
-
-        // 5. Notify your global manager
         PuzzleManager.Instance.CheckPuzzleState();
     }
 }
