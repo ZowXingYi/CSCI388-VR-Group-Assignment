@@ -10,6 +10,7 @@ public class CollectibleItem : MonoBehaviour
 {
     [SerializeField] private ItemType itemType;
     [SerializeField] private int moleAmount = 1;
+    [SerializeField] private AudioClip collectSound;
 
     private XRGrabInteractable grabInteractable;
 
@@ -35,6 +36,10 @@ public class CollectibleItem : MonoBehaviour
 
         // Adds 1 object, with the defined mole amount
         InventoryManager.Instance.AddItem(itemType, moleAmount, 1);
+
+        if (collectSound != null)
+            AudioSource.PlayClipAtPoint(collectSound, transform.position);
+
         Destroy(gameObject);
     }
 }

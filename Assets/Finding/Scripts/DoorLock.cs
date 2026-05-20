@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
@@ -7,6 +8,9 @@ public class DoorLock : MonoBehaviour
 {
     [SerializeField] private XRSocketInteractor[] balloonSockets;
     [SerializeField] private GameObject newDoor;
+    [SerializeField] private GameObject[] balloons;
+    [SerializeField] private AudioSource explodedSoundSource;
+    [SerializeField] private AudioClip explodedSound;
 
     [SerializeField] private UnityEvent onAllBalloonsPlaced; // kept if you still want external hooks
 
@@ -33,6 +37,12 @@ public class DoorLock : MonoBehaviour
             if (newDoor != null)
             {
                 newDoor.SetActive(true);
+                explodedSoundSource.PlayOneShot(explodedSound);
+            }
+
+            foreach (GameObject b in balloons)
+            {
+                if (b != null) b.SetActive(false);
             }
 
             // 3. Fire any additional inspector events
