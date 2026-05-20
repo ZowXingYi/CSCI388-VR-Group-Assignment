@@ -25,9 +25,6 @@ public class AnalyticalLabStation : MonoBehaviour
     [SerializeField] private Slider h2oSlider;
     [SerializeField] private GameObject reactButton;
 
-    [Header("Events")]
-    [SerializeField] private UnityEvent onReactionTriggered;   // Start animation, etc.
-
     private bool panelActive = false;
 
     private void Start()
@@ -127,20 +124,5 @@ public class AnalyticalLabStation : MonoBehaviour
         // Update slider max values (they will have decreased)
         UpdateSliderLimits();
         ResetSlidersToZero();
-
-        // Start the reaction animation / effects
-        onReactionTriggered?.Invoke();
-
-        // Balloons are awarded at the end of the animation via GiveBalloons()
-    }
-
-    /// <summary>
-    /// Called by an Animation Event at the end of the reaction animation.
-    /// </summary>
-    public void GiveBalloons()
-    {
-        // Add 3 balloons, each contributing 1 mole (so totalMoles = 3, itemCount = 3)
-        InventoryManager.Instance.AddItem(ItemType.Balloon, 3, 3);
-        OnReactionComplete?.Invoke();
     }
 }

@@ -2,29 +2,72 @@
 // When pressed, spawns a balloon prefab at the player’s hand and consumes one from inventory.
 
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class BalloonSpawner : MonoBehaviour
 {
-    [SerializeField] private GameObject balloonPrefab;
-    [SerializeField] private Transform handAttachPoint;   // e.g., the right hand controller
+    [Header("Balloon Variants (different colours)")]
+    [SerializeField] private GameObject[] balloonPrefabs;  // e.g., red, blue, green
 
-    public void SpawnBalloon()
+    [SerializeField] private Transform handAttachPoint;
+
+    private GameObject currentBalloon;   // keep track so we can destroy it later
+
+    /// <summary>
+    /// Spawn a balloon in the hand without changing inventory.
+    /// Used after the reaction gives balloons.
+    /// </summary>
+    public void SpawnBalloonInHand()
     {
-        if (InventoryManager.Instance.GetCount(ItemType.Balloon) <= 0)
-            return;
+        Debug.Log("SpawnBalloonInHand called. Balloon count: " +
+              InventoryManager.Instance.GetItemCount(ItemType.Balloon));
 
+        if (InventoryManager.Instance.GetItemCount(ItemType.Balloon) <= 0)
+        {
+            Debug.LogWarning("No balloons in inventory!");
+            return;
+        }
+
+        if (currentBalloon != null)
+            Destroy(currentBalloon);
+
+        GameObject prefab = balloonPrefabs[Random.Range(0, balloonPrefabs.Length)];
+        Debug.Log("Instantiating balloon: " + prefab.name);
+
+        currentBalloon = Instantiate(prefab, handAttachPoint.position, handAttachPoint.rotation, handAttachPoint);
+
+        Debug.Log("Balloon spawned under: " + currentBalloon.transform.parent.name);
+    }
+
+    /// <summary>
+    /// Call this when the balloon is placed on a door.
+    /// Deducts one balloon and immediately spawns the next one (if any left).
+    /// </summary>
+    public void ConsumeBalloonAndRespawn()
+    {
+        // Deduct one balloon item
         InventoryManager.Instance.RemoveItem(ItemType.Balloon, 1);
 
-        GameObject balloon = Instantiate(balloonPrefab, handAttachPoint.position, handAttachPoint.rotation);
-        // Attach to hand using XR Grab Interactable
-        XRGrabInteractable grab = balloon.GetComponent<XRGrabInteractable>();
-        if (grab != null)
+        // Destroy the current balloon
+        if (currentBalloon != null)
         {
-            // Simulate a grab: normally you'd use interaction manager, but for quick demo we parent it
-            balloon.transform.SetParent(handAttachPoint);
-            // You may want to use XR Interaction Toolkit's attach system properly.
+            Destroy(currentBalloon);
+            currentBalloon = null;
+        }
+
+        // If still have balloons, spawn the next one
+        if (InventoryManager.Instance.GetItemCount(ItemType.Balloon) > 0)
+        {
+            SpawnBalloonInHand();
+        }
+    }
+
+    // Optional: if you need to manually clear the hand
+    public void ClearHand()
+    {
+        if (currentBalloon != null)
+        {
+            Destroy(currentBalloon);
+            currentBalloon = null;
         }
     }
 }
