@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Anchor
+  - Flower
+  - Book
+  - Brush
   layers:
   - Default
   - TransparentFX

@@ -3,7 +3,7 @@ using System.Collections;
 
 public class PuzzleManager : MonoBehaviour
 {
-    public static PuzzleManager Instance;
+    public static PuzzleManager Instance { get; private set; }
 
     [Header("Bed Configuration")]
     [SerializeField] private Transform bedTransform;
@@ -15,8 +15,8 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] private Vector3 pedestalsRiseOffset = new Vector3(0, 1.5f, 0);
     [SerializeField] private float riseDuration = 3f;
 
-    [Header("Sockets")]
-    [SerializeField] private OrientationSocket[] puzzleSockets; // Assign your 3 pedestal sockets here
+    [Header("Pedestal Sockets")]
+    [SerializeField] private OrientationSocket[] pedestals;
 
     [Header("Final Reward")]
     [SerializeField] private GameObject secretCompartmentDoor;
@@ -28,14 +28,18 @@ public class PuzzleManager : MonoBehaviour
     void Awake()
     {
         if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     void Update()
     {
         if (bedMoved || bedTransform == null || bedTargetPosition == null) return;
 
-        // Check if the bed is close enough to the target "cleared" spot
         float distance = Vector3.Distance(bedTransform.position, bedTargetPosition.position);
+
+        // Print the distance to the Console panel so you can watch it live
+        Debug.Log($"Bed Distance to Target: {distance}");
+
         if (distance <= activationDistance)
         {
             bedMoved = true;
@@ -67,23 +71,30 @@ public class PuzzleManager : MonoBehaviour
     // Called by the sockets whenever an object is rotated or placed
     public void CheckPuzzleState()
     {
-        if (puzzleComplete) return;
+        // Loop through all pedestals to see if they are ALL solved
+        bool allPedestalsCorrect = true;
 
-        bool allCorrect = true;
-        foreach (OrientationSocket socket in puzzleSockets)
+        foreach (OrientationSocket pedestal in pedestals)
         {
-            if (!socket.IsCorrectlyOriented())
+            // We now check the public 'isPuzzleSolved' boolean variable 
+            // that gets set to true automatically when the player rotates it via UI!
+            if (pedestal != null && !pedestal.IsPuzzleSolved)
             {
-                allCorrect = false;
-                break;
+                allPedestalsCorrect = false;
+                break; // One is wrong, so we don't need to check the rest yet
             }
         }
 
-        if (allCorrect)
+        if (allPedestalsCorrect)
         {
-            puzzleComplete = true;
-            StartCoroutine(OpenSecretCompartment());
+            TriggerPuzzleComplete();
         }
+    }
+
+    private void TriggerPuzzleComplete()
+    {
+        Debug.Log("ALL PEDESTALS ALIGNED! Final room progression unlocked!");
+        // Your existing room completion code goes here (e.g., opening the final door)
     }
 
     IEnumerator OpenSecretCompartment()

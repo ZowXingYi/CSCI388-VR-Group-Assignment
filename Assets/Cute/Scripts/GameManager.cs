@@ -59,6 +59,8 @@ public class GameManager : MonoBehaviour
         if (leftPulled && rightPulled)
         {
             spotlight.enabled = true;
+            // Ensure the GameObject itself is awake
+            spotlight.gameObject.SetActive(true);
             mirrorDisplay.ShowMessage("Let there be light... and let it be your judge.");
         }
     }
