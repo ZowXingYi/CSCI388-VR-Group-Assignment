@@ -3,7 +3,7 @@ using System.Collections;
 
 public class PuzzleManager : MonoBehaviour
 {
-    public static PuzzleManager Instance;
+    public static PuzzleManager Instance { get; private set; }
 
     [Header("Bed Configuration")]
     [SerializeField] private Transform bedTransform;
@@ -14,13 +14,18 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] private Transform pedestalsParent; // Group your 3 pedestals under 1 empty parent
     [SerializeField] private Vector3 pedestalsRiseOffset = new Vector3(0, 1.5f, 0);
     [SerializeField] private float riseDuration = 3f;
+    [SerializeField] private AudioSource pedestalMoveAudio; // Drag Pedestal AudioSource here!
 
-    [Header("Sockets")]
-    [SerializeField] private OrientationSocket[] puzzleSockets; // Assign your 3 pedestal sockets here
+    [Header("Pedestal Sockets")]
+    [SerializeField] private OrientationSocket[] pedestals;
 
     [Header("Final Reward")]
     [SerializeField] private GameObject secretCompartmentDoor;
+    [SerializeField] private Renderer fakeShadowRenderer;
+    [SerializeField] private float shadowFadeDuration = 2f;
     [SerializeField] private Vector3 doorOpenOffset = new Vector3(0, 1f, 0);
+    [SerializeField] private AudioSource shadowRevealAudio; // Drag an ethereal/magic SFX here!
+    [SerializeField] private AudioSource hatchMoveAudio;   // Drag Hatch Door AudioSource here!
 
     private bool bedMoved = false;
     private bool puzzleComplete = false;
@@ -28,14 +33,18 @@ public class PuzzleManager : MonoBehaviour
     void Awake()
     {
         if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     void Update()
     {
         if (bedMoved || bedTransform == null || bedTargetPosition == null) return;
 
-        // Check if the bed is close enough to the target "cleared" spot
         float distance = Vector3.Distance(bedTransform.position, bedTargetPosition.position);
+
+        // Print the distance to the Console panel so you can watch it live
+        Debug.Log($"Bed Distance to Target: {distance}");
+
         if (distance <= activationDistance)
         {
             bedMoved = true;
@@ -43,13 +52,36 @@ public class PuzzleManager : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        // Force the shadow to be invisible the moment the game launches
+        if (fakeShadowRenderer != null)
+        {
+            // Use _BaseColor for modern Unity URP shaders
+            if (fakeShadowRenderer.material.HasProperty("_BaseColor"))
+            {
+                Color c = fakeShadowRenderer.material.GetColor("_BaseColor");
+                c.a = 0f;
+                fakeShadowRenderer.material.SetColor("_BaseColor", c);
+            }
+            else // Fallback for older Standard shaders
+            {
+                Color c = fakeShadowRenderer.material.color;
+                c.a = 0f;
+                fakeShadowRenderer.material.color = c;
+            }
+        }
+    }
+
     IEnumerator RaisePedestals()
     {
-        // Deactivate bed grab interactable so player stops moving it
         if (bedTransform.TryGetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>(out var grab))
         {
             grab.enabled = false;
         }
+
+        // --- PLAY PEDESTAL SOUND ---
+        if (pedestalMoveAudio != null) pedestalMoveAudio.Play();
 
         Vector3 startPos = pedestalsParent.localPosition;
         Vector3 targetPos = startPos + pedestalsRiseOffset;
@@ -62,47 +94,107 @@ public class PuzzleManager : MonoBehaviour
             yield return null;
         }
         pedestalsParent.localPosition = targetPos;
+
+        // --- STOP PEDESTAL SOUND ---
+        if (pedestalMoveAudio != null) pedestalMoveAudio.Stop();
     }
 
     // Called by the sockets whenever an object is rotated or placed
+    // Called by the sockets whenever an object is rotated or placed
     public void CheckPuzzleState()
     {
+        // If the puzzle is already complete, don't do it again
         if (puzzleComplete) return;
 
-        bool allCorrect = true;
-        foreach (OrientationSocket socket in puzzleSockets)
+        // Loop through all pedestals to see if they are ALL solved
+        bool allPedestalsCorrect = true;
+
+        foreach (OrientationSocket pedestal in pedestals)
         {
-            if (!socket.IsCorrectlyOriented())
+            if (pedestal != null && !pedestal.IsPuzzleSolved)
             {
-                allCorrect = false;
-                break;
+                allPedestalsCorrect = false;
+                break; // One is wrong, so we don't need to check the rest yet
             }
         }
 
-        if (allCorrect)
+        if (allPedestalsCorrect)
         {
-            puzzleComplete = true;
-            StartCoroutine(OpenSecretCompartment());
+            TriggerPuzzleComplete();
         }
     }
 
-    IEnumerator OpenSecretCompartment()
+    private void TriggerPuzzleComplete()
+    {
+        puzzleComplete = true;
+        Debug.Log("ALL PEDESTALS ALIGNED! Hatch door sequence initiated!");
+
+        // Start the automated shadow and hatch sequence
+        StartCoroutine(RevealShadowAndOpenHatch());
+    }
+
+    IEnumerator RevealShadowAndOpenHatch()
     {
         if (GameManager.Instance != null && GameManager.Instance.mirrorDisplay != null)
         {
-            GameManager.Instance.mirrorDisplay.ShowMessage("The walls crack... freedom beckons.");
+            GameManager.Instance.mirrorDisplay.ShowMessage("The alignment is complete. The sun marks the descent.");
         }
 
-        Vector3 startPos = secretCompartmentDoor.transform.localPosition;
-        Vector3 targetPos = startPos + doorOpenOffset;
-        float elapsed = 0f;
+        // --- PLAY SHADOW REVEAL SOUND ---
+        if (shadowRevealAudio != null) shadowRevealAudio.Play();
 
-        while (elapsed < 1.5f)
+        if (fakeShadowRenderer != null)
         {
-            secretCompartmentDoor.transform.localPosition = Vector3.Lerp(startPos, targetPos, elapsed / 1.5f);
-            elapsed += Time.deltaTime;
-            yield return null;
+            fakeShadowRenderer.gameObject.SetActive(true);
+            Material shadowMat = fakeShadowRenderer.material;
+            string colorPropertyName = shadowMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
+
+            Color startColor = shadowMat.GetColor(colorPropertyName);
+            startColor.a = 0f;
+            shadowMat.SetColor(colorPropertyName, startColor);
+
+            float elapsedShadow = 0f;
+            while (elapsedShadow < shadowFadeDuration)
+            {
+                elapsedShadow += Time.deltaTime;
+                float alpha = Mathf.Lerp(0f, 0.6f, elapsedShadow / shadowFadeDuration);
+                Color c = shadowMat.GetColor(colorPropertyName);
+                c.a = alpha;
+                shadowMat.SetColor(colorPropertyName, c);
+                yield return null;
+            }
         }
-        secretCompartmentDoor.transform.localPosition = targetPos;
+
+        yield return new WaitForSeconds(2.5f);
+
+        // --- AUTOMATED HATCH SLIDE WITH AUDIO ---
+        if (secretCompartmentDoor != null)
+        {
+            // --- PLAY HATCH MOVEMENT SOUND ---
+            if (hatchMoveAudio != null) hatchMoveAudio.Play();
+
+            Collider[] hatchColliders = secretCompartmentDoor.GetComponentsInChildren<Collider>();
+            foreach (Collider col in hatchColliders) col.enabled = false;
+
+            Vector3 startPos = secretCompartmentDoor.transform.localPosition;
+            Vector3 slideOffset = new Vector3(5.0f, 0.0f, 0f); // Set to your working upward axis!
+            Vector3 targetPos = startPos + slideOffset;
+
+            float elapsedDoor = 0f;
+            float slideDuration = 2.0f;
+
+            while (elapsedDoor < slideDuration)
+            {
+                secretCompartmentDoor.transform.localPosition = Vector3.Lerp(startPos, targetPos, elapsedDoor / slideDuration);
+                elapsedDoor += Time.deltaTime;
+                yield return null;
+            }
+            secretCompartmentDoor.transform.localPosition = targetPos;
+
+            // --- STOP HATCH MOVEMENT SOUND ---
+            if (hatchMoveAudio != null) hatchMoveAudio.Stop();
+
+            Debug.Log("Hatch automatically slid open! Staircase is accessible.");
+        }
     }
 }

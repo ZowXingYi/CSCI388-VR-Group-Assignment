@@ -13,6 +13,10 @@ public class GameManager : MonoBehaviour
     public Vector3 rightSinkOffset = new Vector3(0, -3, 0);
     public float sinkDuration = 2f;
 
+    [Header("Bookcase Audio")]
+    [SerializeField] private AudioSource leftBookcaseAudio;  // Drag left bookcase AudioSource here
+    [SerializeField] private AudioSource rightBookcaseAudio; // Drag right bookcase AudioSource here
+
     [Header("Revealed Objects")]
     public GameObject portraitPainting;    // hidden at start
     public GameObject magnifyingGlassObj; // hidden at start
@@ -44,14 +48,16 @@ public class GameManager : MonoBehaviour
         if (isLeft && !leftPulled)
         {
             leftPulled = true;
-            StartCoroutine(SinkBookcase(leftBookcase, leftSinkOffset));
+            // Pass the specific AudioSource into the coroutine
+            StartCoroutine(SinkBookcase(leftBookcase, leftSinkOffset, leftBookcaseAudio));
             portraitPainting.SetActive(true);
             mirrorDisplay.ShowMessage("You wish to see the truth? Look closely, child...");
         }
         else if (!isLeft && !rightPulled)
         {
             rightPulled = true;
-            StartCoroutine(SinkBookcase(rightBookcase, rightSinkOffset));
+            // Pass the specific AudioSource into the coroutine
+            StartCoroutine(SinkBookcase(rightBookcase, rightSinkOffset, rightBookcaseAudio));
             magnifyingGlassObj.SetActive(true);
             mirrorDisplay.ShowMessage("A tiny glass for tiny minds. Read if you can.");
         }
@@ -59,15 +65,25 @@ public class GameManager : MonoBehaviour
         if (leftPulled && rightPulled)
         {
             spotlight.enabled = true;
+            // Ensure the GameObject itself is awake
+            spotlight.gameObject.SetActive(true);
             mirrorDisplay.ShowMessage("Let there be light... and let it be your judge.");
         }
     }
 
-    IEnumerator SinkBookcase(Transform bookcase, Vector3 offset)
+    // Updated coroutine to accept and control an AudioSource
+    IEnumerator SinkBookcase(Transform bookcase, Vector3 offset, AudioSource movementAudio)
     {
+        // 1. Start playing the audio clip immediately
+        if (movementAudio != null)
+        {
+            movementAudio.Play();
+        }
+
         Vector3 startPos = bookcase.localPosition;
         Vector3 targetPos = startPos + offset;
         float elapsed = 0f;
+
         while (elapsed < sinkDuration)
         {
             bookcase.localPosition = Vector3.Lerp(startPos, targetPos, elapsed / sinkDuration);
@@ -75,5 +91,11 @@ public class GameManager : MonoBehaviour
             yield return null;
         }
         bookcase.localPosition = targetPos;
+
+        // 2. Turn off the audio clip cleanly once movement is finished
+        if (movementAudio != null)
+        {
+            movementAudio.Stop();
+        }
     }
 }
