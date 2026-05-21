@@ -1,30 +1,23 @@
 fileFormatVersion: 2
-guid: f14e8bfdac498dd4f82766090b48e582
-timeCreated: 1570803062
-licenseType: Store
+guid: 9a6ab10a7d8488f4ea4145dd1070ed48
 AudioImporter:
-  serializedVersion: 6
+  externalObjects: {}
+  serializedVersion: 8
   defaultSettings:
+    serializedVersion: 2
     loadType: 0
     sampleRateSetting: 0
     sampleRateOverride: 44100
     compressionFormat: 1
     quality: 1
     conversionMode: 0
+    preloadAudioData: 0
   platformSettingOverrides: {}
   forceToMono: 0
   normalize: 1
-  preloadAudioData: 1
   loadInBackground: 0
   ambisonic: 0
   3D: 1
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 155776
-  packageName: Free Sound Effects Pack
-  packageVersion: 1.0
-  assetPath: Assets/Free Pack/Forest 6 - Ice Forest.wav
-  uploadId: 333958

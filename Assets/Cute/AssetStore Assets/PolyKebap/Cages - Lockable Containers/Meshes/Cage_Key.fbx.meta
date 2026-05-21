@@ -1,11 +1,11 @@
 fileFormatVersion: 2
-guid: f230b962c1f5e4e4dbf51ba397bb1dae
+guid: 644429bfdb8e83a4897ec60255736cb6
 ModelImporter:
-  serializedVersion: 22200
+  serializedVersion: 24200
   internalIDToNameTable: []
   externalObjects: {}
   materials:
-    materialImportMode: 0
+    materialImportMode: 2
     materialName: 0
     materialSearch: 1
     materialLocation: 1
@@ -56,6 +56,9 @@ ModelImporter:
     maxBonesPerVertex: 4
     minBoneWeight: 0.001
     optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
     meshOptimizationFlags: -1
     indexFormat: 0
     secondaryUVAngleDistortion: 8
@@ -105,10 +108,3 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 347612
-  packageName: 'Lockable Containers: Cages'
-  packageVersion: 1.0
-  assetPath: Assets/PolyKebap/Cages - Lockable Containers/Meshes/Cage_Key.fbx
-  uploadId: 840144

@@ -1,24 +1,9 @@
 fileFormatVersion: 2
-guid: 8a212ee01a7672a4a98ab79c2fbf17dd
+guid: 08e7efc98419eed479b86ad95cbf0d1e
 ModelImporter:
-  serializedVersion: 22200
+  serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects:
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: cage_wire_side
-    second: {fileID: 2100000, guid: 4e1a5d999c5750142b6a1b8627e131b5, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: metal
-    second: {fileID: 2100000, guid: fd0b7d45838d4734f8e3b1a083d934c9, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: transparent
-    second: {fileID: 2100000, guid: dd673b451d8faf94c8469cade90ff0b3, type: 2}
+  externalObjects: {}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -71,6 +56,9 @@ ModelImporter:
     maxBonesPerVertex: 4
     minBoneWeight: 0.001
     optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
     meshOptimizationFlags: -1
     indexFormat: 0
     secondaryUVAngleDistortion: 8
@@ -120,10 +108,3 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 347612
-  packageName: 'Lockable Containers: Cages'
-  packageVersion: 1.0
-  assetPath: Assets/PolyKebap/Cages - Lockable Containers/Meshes/Cage_Door.fbx
-  uploadId: 840144

@@ -1,8 +1,8 @@
 fileFormatVersion: 2
-guid: 6e7f23ef945c235438595e89d6332d46
+guid: ae54f397051494d42b63c2c42956f842
 AudioImporter:
   externalObjects: {}
-  serializedVersion: 7
+  serializedVersion: 8
   defaultSettings:
     serializedVersion: 2
     loadType: 0
@@ -21,10 +21,3 @@ AudioImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 295538
-  packageName: Hints Stars Points & Rewards Sound Effects - Lite Pack
-  packageVersion: 1.0
-  assetPath: Assets/HintsStarsLite/Shimmery Reward 5.wav
-  uploadId: 690447

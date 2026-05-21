@@ -1,8 +1,8 @@
 fileFormatVersion: 2
-guid: 16d0788660e724f44ae05e641af1b222
+guid: d5362f0bc33c7dd4f8867a093eafea91
 AudioImporter:
   externalObjects: {}
-  serializedVersion: 7
+  serializedVersion: 8
   defaultSettings:
     serializedVersion: 2
     loadType: 0
@@ -21,10 +21,3 @@ AudioImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 295538
-  packageName: Hints Stars Points & Rewards Sound Effects - Lite Pack
-  packageVersion: 1.0
-  assetPath: Assets/HintsStarsLite/Retro Star Descending 3.wav
-  uploadId: 690447
