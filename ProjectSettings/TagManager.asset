@@ -5,9 +5,13 @@ TagManager:
   serializedVersion: 3
   tags:
   - Anchor
+<<<<<<< HEAD
   - Flower
   - Book
   - Brush
+=======
+  - Balloon
+>>>>>>> origin/XingYi
   layers:
   - Default
   - TransparentFX
